@@ -17,12 +17,12 @@
 
 ## Phase 0 – Project & Architectural Foundation
 
-**Node version requirement**: Project requires Node.js ≥ 20 (LTS); include `.nvmrc` with version.
+**Node version requirement**: Project requires Node.js >= 22.12.0+; include `.nvmrc` with version.
 
-### `ARCH‑001` Setup Astro 6 project structure | Status: `backlog`  
+### `ARCH‑001A` Project scaffolding | Status: `backlog`  
 `depends_on`: none
 
-- [ ] **Parent** `ARCH‑001` – Initialize the Astro 6 project with proper domain‑driven structure.
+- [ ] **Parent** `ARCH‑001A` – Initialize the Astro 6 project structure and core configuration.
 
 | Aspect | Detail |
 | :--- | :--- |
@@ -30,54 +30,86 @@
 | **BDD** | N/A – infrastructure setup |
 | **TDD** | `Test file(s):` tests/integration/project_structure.test.ts `Red‑Green‑Refactor cycle:` 1) verify project directory does not exist (red), 2) create directory structure (green), 3) verify dependency direction with `dependency‑cruiser` (green) |
 | **Deep module** | N/A – configuration task |
-| **Definition of done** | Astro 6 project created, domain‑driven directory structure in place, `dependency‑cruiser` validates inward‑only dependencies, `pnpm build` succeeds |
+| **Definition of done** | Astro 6 project created, domain‑driven directory structure in place, `dependency‑cruiser` validates inward‑only dependencies |
 | **Out of scope** | CI/CD, deployment, dev environment setup |
 | **Rules** | Domain never imports infrastructure; configuration externalized; `neverthrow` added to `package.json` |
 | **Advanced patterns** | Dependency Injection setup, Module pattern |
 | **Anti‑patterns** | Circular dependencies, scattered config |
 
-#### Subtasks for ARCH‑001
+#### Subtasks for ARCH‑001A
 
-- [ ] **ARCH‑001‑1** – `package.json` – Create project dependencies (include `neverthrow`, `@cloudflare/workers-types`, `vitest`, `@cucumber/cucumber`, `dependency‑cruiser`, `react`, `react-dom`, `@astrojs/react`, `@types/react`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`)  
-  `imports_from`: none  
-  `verification`: `pnpm install && pnpm build`
-- [ ] **ARCH‑001‑2** – `astro.config.mjs` – Configure Astro 6 with Cloudflare adapter and `@astrojs/react` integration (note: local dev uses miniflare/KV emulator)  
-  `imports_from`: none  
-  `verification`: `pnpm build` produces Astro output  
-  Security: Configure Content Security Policy using Astro 6's stable CSP API
-(security.csp in astro.config.mjs). Default policy: default-src 'self',
-script-src 'self', style-src 'self', frame‑ancestors 'none'.
-No third‑party tracking scripts permitted.
-Note: for v1, output: 'static' is recommended. Hybrid mode (output: 'hybrid')
-is available for v2 when SSR pages with KV/D1 bindings are needed.
-- [ ] **ARCH‑001‑3** – `src/` – Create domain‑driven directory structure (domain/, application/, infrastructure/, web/, shared/)  
-  `imports_from`: none  
-  `verification`: `test -d src/domain && test -d src/application && test -d src/infrastructure && test -d src/web && test -d src/shared && echo "All layers present"`
-- [ ] **ARCH‑001‑4** – `tests/integration/project_structure.test.ts` – Create structure tests: validate layer isolation (domain doesn't import infra)  
+- [ ] **ARCH-001A-1** - `package.json` - Create project dependencies (include `neverthrow`, `vitest`, `@cloudflare/vitest-pool-workers`, `@cucumber/cucumber`, `dependency-cruiser`, `react`, `react-dom`, `@astrojs/react`, `@types/react`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`, `vi-axe`, `@axe-core/react`, `wrangler`)
+  `imports_from`: none
+  `verification`: `pnpm install && grep '"test:bdd"' package.json`
+  Also add `"test:bdd": "cucumber-js --config cucumber.config.ts"` to the `scripts` section of `package.json`.
+  Note: For v1 static output, `@astrojs/cloudflare` and `@cloudflare/workers-types` are not required. Keep `wrangler` as dev dependency for KV emulator in tests.
+- [ ] **ARCH-001A-2** - `astro.config.mjs` - Configure Astro 6 with `@astrojs/react` integration. Use `import.meta.env.SITE` instead of deprecated `Astro.site` API.
+  `imports_from`: none
+  `verification`: `pnpm build` produces Astro output and grep finds no `Astro.site` usage
+  Security: Configure Content Security Policy using Astro 6's stable CSP API (security.csp in astro.config.mjs). Default policy: default-src 'self', frame-ancestors 'none'. Do not set script-src or style-src – let Astro manage them automatically with hashes/nonces. No third‑party tracking scripts permitted.
+  Note: for v1, output: 'static' is recommended. Hybrid mode (output: 'hybrid') is available for v2 when SSR pages with KV/D1 bindings are needed.
+- [ ] **ARCH‑001A‑3** – `src/` – Create domain‑driven directory structure (domain/, application/, infrastructure/, web/, shared/) with barrel `index.ts` files per directory for clean imports
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit && pnpm astro check`
+- [ ] **ARCH‑001A‑4** – `tests/integration/project_structure.test.ts` – Create structure tests: validate layer isolation (domain doesn't import infra)  
   `imports_from`: `vitest`  
   `verification`: `pnpm test -- project_structure` passes
-- [ ] **ARCH‑001‑5** – `src/shared/result.ts` – Re‑export `Result`, `Ok`, `Err` from `neverthrow`  
+- [ ] **ARCH-001A-5** - `.nvmrc` - Create Node version file specifying 22.12.0+  
+  `imports_from`: none  
+  `verification`: `test -f .nvmrc && grep -E "^22\." .nvmrc`
+
+---
+
+### `ARCH‑001B` Shared kernel & enforcement | Status: `backlog`  
+`depends_on`: `ARCH‑001A`
+
+- [ ] **Parent** `ARCH‑001B` – Establish shared types, error handling, and dependency enforcement.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Infrastructure (shared kernel) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/unit/shared/result.test.ts `Red‑Green‑Refactor cycle:` 1) test Result type creation, 2) test error propagation |
+| **Deep module** | N/A – shared infrastructure |
+| **Definition of done** | Shared Result type, error types defined, dependency-cruiser enforces inward-only dependencies, wrangler.toml configured, Cloudflare _headers in place |
+| **Out of scope** | Production Cloudflare Queues (deferred to v2) |
+| **Rules** | All domain functions return Result<T, E>; dependency-cruiser prevents circular imports |
+| **Advanced patterns** | Result pattern, Dependency enforcement |
+| **Anti‑patterns** | Direct error throwing, circular dependencies |
+
+#### Subtasks for ARCH‑001B
+
+- [ ] **ARCH‑001B‑1** – `src/shared/result.ts` – Re‑export `Result`, `Ok`, `Err` from `neverthrow`  
   `imports_from`: `neverthrow`  
   `verification`: `pnpm tsc --noEmit` compiles
-Note: neverthrow is class‑based; Result objects lose their prototype chain when
-passed through structuredClone, postMessage, or Worker boundaries (relevant for
-Cloudflare Workers SSR). For the v1 static site this is not an issue. If v2 adds
-SSR API routes, consider verdict‑ts (491 B gzipped, plain‑object Result) or ensure
-results are unwrapped before serialization.
-- [ ] **ARCH‑001‑6** – `src/shared/errors.ts` – Define shared error types: `ValidationError`, `NotFoundError`, `IntegrationError`, `ComplianceError`  
+  Note: neverthrow is class‑based; Result objects lose their prototype chain when passed through structuredClone, postMessage, or Worker boundaries (relevant for Cloudflare Workers SSR). For the v1 static site this is not an issue. If v2 adds SSR API routes, consider switching to verdict‑ts (491 B gzipped, plain‑object Result, survives serialization) or ensure results are unwrapped before serialization.
+- [ ] **ARCH‑001B‑2** – `src/shared/errors.ts` – Define shared error types: `ValidationError`, `NotFoundError`, `IntegrationError`, `ComplianceError`  
   `imports_from`: none  
   `verification`: `pnpm tsc --noEmit` compiles
-- [ ] **ARCH‑001‑7** – `dependency-cruiser.cjs` – Configure import direction enforcement  
-  `imports_from`: none  
+- [ ] **ARCH‑001B‑3** – `dependency-cruiser.cjs` – Configure import direction enforcement
+  `imports_from`: none
   `verification`: `pnpm exec depcruise --validate` exits 0
-- [ ] **ARCH‑001‑8** – `wrangler.toml` – Configure Cloudflare Workers bindings (KV namespace, environment variables) and Astro adapter settings  
-  `imports_from`: none  
-  `verification`: `test -f wrangler.toml && grep "kv_namespaces" wrangler.toml`
+  Note: Be aware of @astroscope/airlock for future v2 SSR API routes that may need to bypass dependency rules for API route isolation
+- [ ] **ARCH‑001B‑4** – `public/_headers` – Cloudflare security headers
+  `imports_from`: none
+  `verification`: `test -f public/_headers && pnpm astro check`
+  Content:
+  ```
+  /*
+    X-Frame-Options: DENY
+    X-Content-Type-Options: nosniff
+    Referrer-Policy: strict-origin-when-cross-origin
+    Permissions-Policy: camera=(), microphone=(), geolocation=()
+  ```
+- [ ] **ARCH‑001B‑5** – `wrangler.toml` - Configure Cloudflare Workers bindings (environment variables) for v2 SSR
+  `imports_from`: none
+  `verification`: `test -f wrangler.toml && pnpm tsc --noEmit`
+  Note: For v1 static output, wrangler.toml is optional - Cloudflare Pages auto-detects dist/. KV bindings deferred to v2. Do not require kv_namespaces in v1.
 
 ---
 
 ### `ARCH‑002` Configure testing infrastructure | Status: `backlog`  
-`depends_on`: `ARCH‑001`
+`depends_on`: `ARCH‑001B`
 
 - [ ] **Parent** `ARCH‑002` – Set up comprehensive testing framework for TDD and BDD.
 
@@ -88,50 +120,164 @@ results are unwrapped before serialization.
 | **TDD** | `Test file(s):` tests/setup/test_config.test.ts `Red‑Green‑Refactor cycle:` 1) shell assertion: `pnpm test` fails before config (red), 2) configure vitest & cucumber (green), 3) verify `pnpm test` runs empty suites successfully |
 | **Deep module** | N/A |
 | **Definition of done** | `pnpm test` executes unit tests, `pnpm test:bdd` parses and runs `.feature` files, coverage thresholds enforced (≥90% domain, ≥70% infrastructure), a placeholder feature file exists |
-| **Out of scope** | Performance testing |
+| **Out of scope** | CI/CD, deployment, dev environment setup, E2E testing (deferred to v2) |
+| **Rules** | E2E testing with Playwright deferred to v2; v1 focuses on unit and integration tests only |
 | **Rules** | Unit tests isolated; BDD human‑readable; coverage thresholds in vitest.config.ts |
 | **Advanced patterns** | Test doubles, Page object |
 | **Anti‑patterns** | Test dependencies, missing cleanups |
 
 #### Subtasks for ARCH‑002
 
-- [ ] **ARCH‑002‑1** – `vitest.config.ts` – Configure unit runner (glob `tests/**/*.test.ts`, coverage thresholds, environment: 'jsdom', setupFiles: ['./tests/setup/vitest.setup.ts'])  
-  `imports_from`: `vitest/config`  
-  `verification`: `pnpm test` runs and collects zero tests
+- [ ] **ARCH-002-1** – Vitest configuration (split unit/integration projects)
+  `imports_from`: `vitest/config`, `@cloudflare/vitest-pool-workers`
+  `verification`:
+  - `test -f vitest.unit.config.ts`
+  - `test -f vitest.integration.config.ts`
+  - `pnpm test -- --list` shows both project suites
+  **Implementation details**:
+  - `vitest.unit.config.ts`: environment `jsdom`, glob `tests/unit/**/*.test.ts`, coverage thresholds, setupFiles [`./tests/setup/vitest.setup.ts`, `vi-axe/extend-expect`]
+  - `vitest.integration.config.ts`: uses `@cloudflare/vitest-pool-workers` (workerd runtime), glob `tests/integration/**/*.test.ts`, lower coverage thresholds
+  - `vitest.config.ts`: root file containing `projects: ['./vitest.unit.config.ts', './vitest.integration.config.ts']`
 - [ ] **ARCH‑002‑2** – `cucumber.config.ts` – Configure BDD framework with glob `features/**/*.feature`, require: ['tests/**/*.steps.ts']  
   `imports_from`: `@cucumber/cucumber`  
   `verification`: `pnpm test:bdd` runs and parses the placeholder feature file (see ARCH‑002‑3)
-- [ ] **ARCH‑002‑3** – `tests/setup/` + `features/example.feature` + `tests/setup/vitest.setup.ts` – Create test setup, mocks, vitest setup with jest-dom matchers, and a minimal `Example` feature so BDD runner has something to parse  
-  `imports_from`: none  
-  `verification`: `pnpm test:bdd` parses `example.feature` successfully
-- [ ] **ARCH‑002‑4** – `tests/setup/test_config.test.ts` – Verify test runner configuration  
-  `imports_from`: `vitest`  
+- [ ] **ARCH‑002‑3** – `tests/setup/` + `features/example.feature` + `tests/setup/vitest.setup.ts` – Create test setup, mocks, vitest setup with jest-dom matchers, and a minimal `Example` feature so BDD runner has something to parse
+  `imports_from`: none
+  `verification`: `pnpm test:bdd` parses `example.feature` successfully and passes QABAGE checklist
+- [ ] **ARCH‑002‑3‑1** – `docs/qabage-checklist.md` – QABAGE checklist with 7 yes/no questions for BDD scenario quality
+  `imports_from`: none
+  `verification`: `test -f docs/qabage-checklist.md && pnpm tsc --noEmit`
+- [ ] **ARCH‑002‑4** – `tests/setup/test_config.test.ts` – Verify test runner configuration
+  `imports_from`: `vitest`
   `verification`: `pnpm test -- test_config` passes
+- [ ] **ARCH-002-5** – `package.json` – Add `test:bdd` script
+  `verification`: `grep '"test:bdd"' package.json` returns a valid script
+  Script: `"test:bdd": "cucumber-js --config cucumber.config.ts"`
 
 ---
 
-### `ARCH‑007` Create Cucumber step definition scaffold | Status: `backlog`  
-`depends_on`: `ARCH‑002`, `COMP‑001‑7`, `BROK‑001‑6`, `TECH‑001‑7`, `VIOL‑001‑7`, `LAW‑001‑7`
+### `ARCH-007-company` Create Company Cucumber step definitions | Status: `backlog`  
+`depends_on`: `ARCH-002`, `COMP-001-7`
 
-- [ ] **Parent** `ARCH‑007` – Scaffold step definition files for BDD scenarios.
+- [ ] **Parent** `ARCH-007-company` - Scaffold step definition file for Company BDD scenarios.
 
 | Aspect | Detail |
 | :--- | :--- |
 | **DDD** | `Bounded context:` Testing Infrastructure `Aggregate root:` N/A |
-| **BDD** | All `.feature` files have corresponding step definitions |
-| **TDD** | `Test file(s):` tests/integration/step_definitions.test.ts |
-| **Deep module** | N/A – scaffolding |
-| **Definition of done** | Step definition files exist for all bounded contexts, BDD runner finds all steps |
+| **BDD** | Company `.feature` file has corresponding step definitions |
+| **TDD** | `Test file(s):` tests/integration/company/step_definitions.test.ts |
+| **Deep module** | N/A - scaffolding |
+| **Definition of done** | Company step definition file exists, BDD runner finds all company steps |
 | **Out of scope** | Full step implementations |
 | **Rules** | Steps map to empty functions initially |
 | **Advanced patterns** | Gherkin step organization |
-| **Anti‑patterns** | Missing step files |
+| **Anti-patterns** | Missing step file |
 
-#### Subtasks for ARCH‑007
+#### Subtasks for ARCH-007-company
 
-- [ ] **ARCH‑007‑1** – For each bounded context (company, broker, tech, violation, law), create a minimal step file that defines the steps referenced in the `.feature` files  
+- [ ] **ARCH-007-company-1** - Create `tests/company/company.steps.ts` with minimal step functions for company-evaluation.feature  
   `imports_from`: none  
-  `verification`: `pnpm test:bdd --dry-run` lists all steps as defined/pending
+  `verification`: `pnpm test:bdd --dry-run features/company/company-evaluation.feature` lists all steps as defined/pending
+
+---
+
+### `ARCH-007-broker` Create Data Broker Cucumber step definitions | Status: `backlog`  
+`depends_on`: `ARCH-002`, `BROK-001-6`
+
+- [ ] **Parent** `ARCH-007-broker` - Scaffold step definition file for Data Broker BDD scenarios.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Testing Infrastructure `Aggregate root:` N/A |
+| **BDD** | Broker `.feature` file has corresponding step definitions |
+| **TDD** | `Test file(s):` tests/integration/broker/step_definitions.test.ts |
+| **Deep module** | N/A - scaffolding |
+| **Definition of done** | Broker step definition file exists, BDD runner finds all broker steps |
+| **Out of scope** | Full step implementations |
+| **Rules** | Steps map to empty functions initially |
+| **Advanced patterns** | Gherkin step organization |
+| **Anti-patterns** | Missing step file |
+
+#### Subtasks for ARCH-007-broker
+
+- [ ] **ARCH-007-broker-1** - Create `tests/broker/broker.steps.ts` with minimal step functions for broker-management.feature  
+  `imports_from`: none  
+  `verification`: `pnpm test:bdd --dry-run features/broker/broker-management.feature` lists all steps as defined/pending
+
+---
+
+### `ARCH-007-tech` Create Technology Cucumber step definitions | Status: `backlog`  
+`depends_on`: `ARCH-002`, `TECH-001-7`
+
+- [ ] **Parent** `ARCH-007-tech` - Scaffold step definition file for Technology BDD scenarios.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Testing Infrastructure `Aggregate root:` N/A |
+| **BDD** | Technology `.feature` file has corresponding step definitions |
+| **TDD** | `Test file(s):` tests/integration/tech/step_definitions.test.ts |
+| **Deep module** | N/A - scaffolding |
+| **Definition of done** | Technology step definition file exists, BDD runner finds all tech steps |
+| **Out of scope** | Full step implementations |
+| **Rules** | Steps map to empty functions initially |
+| **Advanced patterns** | Gherkin step organization |
+| **Anti-patterns** | Missing step file |
+
+#### Subtasks for ARCH-007-tech
+
+- [ ] **ARCH-007-tech-1** - Create `tests/tech/tech.steps.ts` with minimal step functions for technology-categorization.feature  
+  `imports_from`: none  
+  `verification`: `pnpm test:bdd --dry-run features/tech/technology-categorization.feature` lists all steps as defined/pending
+
+---
+
+### `ARCH-007-violation` Create Violation Cucumber step definitions | Status: `backlog`  
+`depends_on`: `ARCH-002`, `VIOL-001-7`
+
+- [ ] **Parent** `ARCH-007-violation` - Scaffold step definition file for Violation BDD scenarios.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Testing Infrastructure `Aggregate root:` N/A |
+| **BDD** | Violation `.feature` file has corresponding step definitions |
+| **TDD** | `Test file(s):` tests/integration/violation/step_definitions.test.ts |
+| **Deep module** | N/A - scaffolding |
+| **Definition of done** | Violation step definition file exists, BDD runner finds all violation steps |
+| **Out of scope** | Full step implementations |
+| **Rules** | Steps map to empty functions initially |
+| **Advanced patterns** | Gherkin step organization |
+| **Anti-patterns** | Missing step file |
+
+#### Subtasks for ARCH-007-violation
+
+- [ ] **ARCH-007-violation-1** - Create `tests/violation/violation.steps.ts` with minimal step functions for violation-tracking.feature  
+  `imports_from`: none  
+  `verification`: `pnpm test:bdd --dry-run features/violation/violation-tracking.feature` lists all steps as defined/pending
+
+---
+
+### `ARCH-007-law` Create Law Cucumber step definitions | Status: `backlog`  
+`depends_on`: `ARCH-002`, `LAW-001-7`
+
+- [ ] **Parent** `ARCH-007-law` - Scaffold step definition file for Law BDD scenarios.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Testing Infrastructure `Aggregate root:` N/A |
+| **BDD** | Law `.feature` file has corresponding step definitions |
+| **TDD** | `Test file(s):` tests/integration/law/step_definitions.test.ts |
+| **Deep module** | N/A - scaffolding |
+| **Definition of done** | Law step definition file exists, BDD runner finds all law steps |
+| **Out of scope** | Full step implementations |
+| **Rules** | Steps map to empty functions initially |
+| **Advanced patterns** | Gherkin step organization |
+| **Anti-patterns** | Missing step file |
+
+#### Subtasks for ARCH-007-law
+
+- [ ] **ARCH-007-law-1** - Create `tests/law/law.steps.ts` with minimal step functions for law-management.feature  
+  `imports_from`: none  
+  `verification`: `pnpm test:bdd --dry-run features/law/law-management.feature` lists all steps as defined/pending
 
 ---
 
@@ -154,13 +300,31 @@ results are unwrapped before serialization.
 
 #### Subtasks for ARCH‑003
 
-- [ ] **ARCH‑003‑1** – `docs/context-map.md` – Create Context Map: one section per context pair (Company Evaluation, Data Broker Management, Technology Evaluation, Violation Tracking, Legal Compliance, Web Adapter)  
-  `imports_from`: none  
-  `verification`: `grep -c "Context Pair:" docs/context-map.md` equals 15, each section names an integration pattern  
+- [ ] **ARCH‑003‑1** – `docs/context-map.md` – Create Context Map: one section per context pair (Company Evaluation, Data Broker Management, Technology Evaluation, Violation Tracking, Legal Compliance, Web Adapter). Each context pair must explicitly name the integration pattern (ACL, Shared Kernel, Open Host, etc.).
+  `imports_from`: none
+  `verification`: `grep -c "Context Pair:" docs/context-map.md` equals 15, each section names an integration pattern (ACL/Shared Kernel/Open Host/etc.)
   **Context pairs to enumerate**: Company↔Legal, Company↔Violation, Company↔Broker, Company↔Technology, Company↔Web, Legal↔Violation, Legal↔Broker, Legal↔Technology, Legal↔Web, Violation↔Broker, Violation↔Technology, Violation↔Web, Broker↔Technology, Broker↔Web, Technology↔Web
-- [ ] **ARCH‑003‑2** – `docs/ubiquitous-language.md` – Collect all terms from task tables, define them canonically  
+- [ ] **ARCH-003-2** - `docs/ubiquitous-language.md` - Collect all terms from task tables, define them canonically  
   `imports_from`: none  
-  `verification`: file contains at least one entry per domain aggregate and value object
+  `verification`: file contains at least one entry per domain aggregate and value object  
+  **Privacy Score Categories**: The Privacy Fairness Index (PFI) uses 6 categories with the following weights:
+  - Data Collection Scope: 25%
+  - Third‑Party Sharing: 20%
+  - Retention & Deletion: 20%
+  - User Control & Consent: 15%
+  - Transparency & Access: 10%
+  - Security & Breach Notification: 10%
+  Total = 100%
+
+  Our 4‑category scoring system re‑maps these into aggregated dimensions, then
+  re‑scales and adds an external Legal Compliance History dimension not measured by PFI:
+  - Data Collection & Sharing: 0.40  (merges Data Collection 25% + Third‑Party Sharing 20% → 45% of PFI base)
+  - Transparency & User Control: 0.35 (merges User Control & Consent 15% + Transparency & Access 10% → 25% of PFI base)
+  - Retention & Security: 0.15 (merges Retention & Deletion 20% + Security & Breach Notification 10% → 30% of PFI base)
+  - Legal Compliance History: 0.10 (external regulatory record — not derived from PFI)
+  These four weights sum to 1.0. They are a separate methodological choice, not a
+  direct arithmetic scaling of PFI.  
+  **Monitoring item**: Add SECURE Data Act (discussion draft released April 22, 2026) to monitoring list - federal bill that would preempt state privacy laws if passed
 
 ---
 
@@ -176,22 +340,24 @@ results are unwrapped before serialization.
 | **TDD** | `Test file(s):` tests/unit/shared/event_bus.test.ts `Red‑Green‑Refactor cycle:` 1) subscribe and publish single event (in‑memory), 2) verify handler receives correct payload |
 | **Deep module** | `Public interface:` EventBus.publish(event), .subscribe(type, handler) `Hidden complexity:` In‑memory delivery, future Cloudflare Queues adapter `Depth metric:` shallow‑moderate |
 | **Definition of done** | In‑memory `EventBus` implementation; interface defined in `src/shared/event-bus.ts`; subscription registration mechanism (composition root) noted in docs |
-| **Out of scope** | Production Cloudflare Queues, persistence of events |
+| **Out of scope** | Production Cloudflare Queues, persistence of events  |
 | **Rules** | Events are plain objects with `type` and `payload`; subscribers registered at infrastructure wire‑up (not inside domain) |
+| **Limitations** | For v1 static output, the in-memory EventBus limitation has zero runtime impact (all data is pre-built). For v2 SSR, note that Cloudflare KV is eventually consistent and the in-memory EventBus does not survive worker restarts, meaning cross-request event handling will be degraded without Cloudflare Queues. |
 | **Advanced patterns** | Observer pattern |
 | **Anti‑patterns** | Domain directly depending on event bus implementation |
 
 #### Subtasks for ARCH‑004
 
-- [ ] **ARCH‑004‑1** – `src/shared/event-bus.ts` – Define `EventBus` interface and `InMemoryEventBus` class  
-  `imports_from`: none  
+- [ ] **ARCH‑004‑1** – `src/shared/event-bus.ts` – Define `EventBus` interface and `InMemoryEventBus` class
+  `imports_from`: none
   `verification`: `pnpm tsc --noEmit`
+  Additionally, define a discriminated union type `DomainEvent` aggregating all event payloads (CompanyEvaluated, BrokerRegistered, etc.) for type safety.
 - [ ] **ARCH‑004‑2** – `tests/unit/shared/event_bus.test.ts` – Tests for publish/subscribe  
   `imports_from`: `EventBus`  
   `verification`: tests pass
 - [ ] **ARCH‑004‑3** – `docs/event-subscriptions.md` – Document where subscriptions are wired (composition root)  
   `imports_from`: none  
-  `verification`: `test -f docs/event-subscriptions.md`
+  `verification`: `test -f docs/event-subscriptions.md && pnpm tsc --noEmit`
 
 ---
 
@@ -214,13 +380,190 @@ results are unwrapped before serialization.
 
 #### Subtasks for ARCH‑005
 
-- [ ] **ARCH‑005‑1** – `docs/data-flow.md` – Create data flow diagram (Mermaid) showing query and command flows  
-  `imports_from`: none  
-  `verification`: file exists and renders a diagram  
-  **Scope**: Diagram must show: query flow (repository → aggregate → DTO → web), command flow (web → application service → repository → event), and event‑driven cross‑context flow.
+- [ ] **ARCH‑005‑1** – `docs/data-flow.md` – Create data flow diagram (Mermaid) showing query and command flows. Include error mapping strategy section documenting how domain errors (ValidationError, NotFoundError, etc.) map to HTTP responses and UI states.
+  `imports_from`: none
+  `verification`: `test -f docs/data-flow.md && pnpm tsc --noEmit`
+  **Scope**: Diagram must show: query flow (repository → aggregate → DTO → web), command flow (web → application service → repository → event), event‑driven cross‑context flow, and error mapping strategy (domain → HTTP/UI).
 - [ ] **ARCH‑005‑2** – `src/shared/errors.ts` (finalize) – Ensure all error types used across tasks are defined  
   `imports_from`: none  
   `verification`: `pnpm tsc --noEmit` compiles with imports from `errors.ts`
+
+---
+
+### `ARCH‑006` Create navigation skeleton | Status: `backlog`
+`depends_on`: `ARCH‑001`
+
+- [ ] **Parent** `ARCH‑006` – Create global navigation component for site.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – navigation component |
+| **Definition of done** | Navigation component created with complete links to all main pages; integrated into BaseLayout |
+| **Out of scope** | Dynamic navigation items |
+| **Rules** | Navigation links to all main pages; accessible; responsive |
+| **Advanced patterns** | Semantic HTML navigation |
+| **Anti‑patterns** | Missing navigation, broken links |
+
+#### Subtasks for ARCH‑006
+
+- [ ] **ARCH‑006‑1** – `src/web/components/navigation.astro` – Global header/footer component with complete links to all main pages (homepage, companies, technologies, data brokers, violations, legal guide, practices)
+  `imports_from`: none
+  `verification`: `pnpm astro check` compiles and navigation renders with all links
+- [ ] **ARCH‑006‑2** – Document navigation structure in `docs/navigation-structure.md`
+  `imports_from`: none
+  `verification`: `test -f docs/navigation-structure.md && pnpm astro check`
+
+---
+
+### `ARCH‑009` SEO Foundation | Status: `backlog`
+`depends_on`: `ARCH‑001A`
+
+- [ ] **Parent** `ARCH‑009` – Establish SEO infrastructure for all pages.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/unit/web/utils/jsonld.test.ts |
+| **Deep module** | N/A – infrastructure |
+| **Definition of done** | Head component with SEO meta tags, JSON-LD helpers configured, sitemap integration, robots.txt in place |
+| **Out of scope** | Dynamic SEO (deferred to v2) |
+| **Rules** | All pages use Head component; JSON-LD type-safe; sitemap auto-generated |
+| **Advanced patterns** | Structured data, Sitemap generation |
+| **Anti‑patterns** | Missing meta tags, broken structured data |
+
+#### Subtasks for ARCH‑009
+
+- [ ] **ARCH‑009‑1** – `src/web/components/Head.astro` – SEO head component with title, description, OG tags, JSON-LD slot
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit` compiles
+- [ ] **ARCH‑009‑2** – `src/web/utils/jsonld.ts` – Type-safe helpers for JSON-LD (Organization, WebSite, BreadcrumbList, FAQPage)
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit` compiles and unit tests pass
+- [ ] **ARCH‑009‑3** – Configure `@astrojs/sitemap` integration in `astro.config.mjs`
+  `imports_from`: none
+  `verification`: `pnpm build` generates sitemap.xml
+- [ ] **ARCH‑009‑4** – `public/robots.txt` – Search engine crawler directives
+  `imports_from`: none
+  `verification`: `test -f public/robots.txt && pnpm astro check`
+
+---
+
+### `ARCH‑010` Privacy-First Font Strategy | Status: `backlog`
+`depends_on`: `ARCH‑001A`
+
+- [ ] **Parent** `ARCH‑010` – Configure privacy-first font loading strategy.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – configuration |
+| **Definition of done** | Astro 6 Fonts API configured with local font provider, font families applied via CSS custom properties |
+| **Out of scope** | Web fonts from external CDNs (privacy concern) |
+| **Rules** | Use local font provider (e.g., Fontsource); no external font requests; font-display: swap |
+| **Advanced patterns** | Local font loading, CSS custom properties |
+| **Anti‑patterns** | External font requests, font flash |
+
+#### Subtasks for ARCH‑010
+
+- [ ] **ARCH‑010‑1** – Enable Astro 6 Fonts API with local font provider (e.g., Fontsource) in `astro.config.mjs`
+  `imports_from`: none
+  `verification`: `pnpm build` succeeds and fonts are bundled locally
+- [ ] **ARCH‑010‑2** – Apply font family in `BaseLayout.astro` via CSS custom properties
+  `imports_from`: none
+  `verification`: `pnpm build` succeeds and CSS custom properties are defined
+
+---
+
+### `ARCH‑012` Static page scaffold | Status: `backlog`
+`depends_on`: `ARCH‑001A`
+
+- [ ] **Parent** `ARCH‑012` – Create static page scaffold for incremental page development.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – scaffolding |
+| **Definition of done** | Static page scaffold with `<html>`, `<head>`, `<body>` and Astro `<slot />` for incremental page development |
+| **Out of scope** | Dynamic content |
+| **Rules** | Minimal scaffold; all pages extend this |
+| **Advanced patterns** | Page template pattern |
+| **Anti‑patterns** | Missing scaffold causing duplication |
+
+#### Subtasks for ARCH-012
+
+- [ ] **ARCH‑012‑1** – `src/layouts/PageLayout.astro` – Static page scaffold with `<html>`, `<head>`, `<body>` and Astro `<slot />` for incremental page development
+  `imports_from`: none
+  `verification`: `pnpm astro check` compiles successfully
+
+---
+
+### `ARCH‑013` Architectural Guardrails Check | Status: `backlog`
+`depends_on`: `ARCH‑001B`, `ARCH‑002`
+
+- [ ] **Parent** `ARCH‑013` – Create automated architectural guardrails to validate dependency direction and error handling patterns.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Infrastructure (shared kernel) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – validation task |
+| **Definition of done** | Dependency-cruiser validates inward-only dependencies; script checks Result usage; script checks no direct seed.json reads from domain/application layers |
+| **Out of scope** | CI/CD integration (deferred to v2) |
+| **Rules** | Domain never imports infrastructure; all domain functions return Result types; seed data only read in infrastructure layer |
+| **Advanced patterns** | Architectural validation |
+| **Anti‑patterns** | Circular dependencies, thrown errors in domain |
+
+#### Subtasks for ARCH-013
+
+- [ ] **ARCH‑013‑1** – `dependency-cruiser.cjs` – Ensure configuration validates that no domain file imports from infrastructure
+  `imports_from`: none
+  `verification`: `pnpm exec depcruise --validate` exits 0 with no violations
+- [ ] **ARCH‑013‑2** – `scripts/check-result-usage.sh` – Script that checks all Result usage (grep for thrown errors in domain layer)
+  `imports_from`: none
+  `verification`: script exists and runs without finding thrown errors in domain layer
+- [ ] **ARCH‑013‑3** – `scripts/check-seed-data-access.sh` – Script that checks that no file directly reads `seed.json` from the domain or application layers
+  `imports_from`: none
+  `verification`: script exists and runs without finding direct seed.json reads in domain/application layers
+
+---
+
+### `ARCH‑008` Configure accessibility testing | Status: `backlog`
+`depends_on`: `ARCH‑002`
+
+- [ ] **Parent** `ARCH‑008` – Verify accessibility testing infrastructure is properly configured.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Testing Infrastructure (enabling) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/setup/accessibility.test.ts |
+| **Deep module** | N/A – configuration verification |
+| **Definition of done** | `vi-axe` integration verified; `@axe-core/react` added for component-level checks; accessibility test passes |
+| **Out of scope** | Full accessibility audit (deferred to dedicated audit task) |
+| **Rules** | Accessibility testing integrated into test suite |
+| **Advanced patterns** | Automated accessibility checks |
+| **Anti‑patterns** | Accessibility testing not verified |
+
+#### Subtasks for ARCH‑008
+
+- [ ] **ARCH‑008‑1** – Verify `vi-axe` is properly configured in vitest setup
+  `imports_from`: `vi-axe`
+  `verification`: `pnpm test -- accessibility` passes with axe matcher available
+- [ ] **ARCH‑008‑2** – Add `@axe-core/react` to dependencies for component-level accessibility checks
+  `imports_from`: none
+  `verification`: `pnpm install` succeeds and package is in package.json
+- [ ] **ARCH‑008‑3** – `tests/setup/accessibility.test.ts` – Create baseline accessibility test
+  `imports_from`: `@axe-core/react`
+  `verification`: test passes with basic accessibility check
 
 ---
 
@@ -235,7 +578,7 @@ All of these can be developed in parallel after Phase 0.
 
 | Aspect | Detail |
 | :--- | :--- |
-| **DDD** | `Bounded context:` Company Evaluation `Aggregate root:` Company `Ubiquitous language:` Company, PrivacyScore, Practice, Category, CompanyEvaluated (event) |
+| **DDD** | `Bounded context:` Company Evaluation `Aggregate root:` Company `Ubiquitous language:` Company, PrivacyScore, Practice, Category, CompanyEvaluated (event) **Repository interface location:** Domain layer (`src/companies/domain/company_repository.ts`) per DDD convention; infrastructure implements this interface |
 | **BDD** | `Feature:` Administrator evaluates company privacy `Scenario 1:` Happy path – given practices with weights, score calculated correctly `Scenario 2:` Company with no practices → evaluation fails with ValidationError `Scenario 3:` Company with a single practice in each category → correct weighted score |
 | **TDD** | `Test file(s):` tests/unit/company/domain/company.test.ts `Red‑Green‑Refactor cycle:` 1) test_company_creates_from_factory, 2) test_privacy_score_calculates_weighted_average, 3) test_category_assignment, 4) test_company_rejects_invalid_practices (negative), 5) test_evaluate_fails_with_no_practices, 6) test_algorithm_uses_configured_weights |
 | **Deep module** | `Public interface:` Company.create(name, practices), evaluatePrivacy(), getCategory() `Hidden complexity:` Weighted scoring (~200 lines), validation, category classification `Depth metric:` deep – 3 public methods, ~200 lines internal logic |
@@ -247,9 +590,10 @@ All of these can be developed in parallel after Phase 0.
 
 #### Subtasks for COMP‑001
 
-- [ ] **COMP‑001‑1** – `src/companies/domain/company.ts` – Define Company aggregate root (fields: id, name, practices, privacyScore, category; creates via static `create()`)  
-  `imports_from`: Practice, PrivacyScore, Category  
+- [ ] **COMP‑001‑1** – `src/companies/domain/company.ts` – Define Company aggregate root (fields: id, name, practices, privacyScore, category; creates via static `create()`)
+  `imports_from`: Practice, PrivacyScore, Category
   `verification`: `pnpm tsc --noEmit` compiles; later tests will cover
+  Note: Practice is a value object defined inline in `src/companies/domain/company.ts` (fields: id, name, category, weight, sourceUrl). No separate subtask required.
 - [ ] **COMP‑001‑2** – `src/companies/domain/privacy-score.ts` – Define `PrivacyScore` value object (validates 0‑100, returns `Result<PrivacyScore, ValidationError>`)  
   `imports_from`: `Result` from `src/shared/result.ts`, `ValidationError` from `src/shared/errors.ts`  
   `verification`: `pnpm tsc --noEmit` and corresponding test suite passes
@@ -261,14 +605,31 @@ All of these can be developed in parallel after Phase 0.
   `verification`: `pnpm tsc --noEmit`
 - [ ] **COMP‑001‑5** – `src/companies/domain/privacy-scoring-algorithm.ts` – Implement weighted algorithm as a pure function; reads constants based on Privacy Fairness Index methodology; accepts optional weights parameter  
   `imports_from`: Practice, `Result`  
-  `verification`: unit tests pass; test_algorithm_uses_correct_weights  
+  `verification`: unit tests pass; test_algorithm_uses_correct_weights
   Real-world weights (mapped from the Privacy Fairness Index, terms.law 2026):
-- Data Collection & Sharing: 0.40  (merges "Data Collection" 30% + "Third‑Party Sharing" 20% → 50% of base; scaled to 40%)
-- Transparency & User Control: 0.35 (merges "User Control & Consent" 15% + "Transparency & Access" 10%)
-- Retention & Security: 0.15 (merges "Retention & Deletion" 20% + "Security" 5%)
-- Legal Compliance History: 0.10 (external regulatory record — not directly measured by policy‑only PFI)
-Standard PFI categories: data-collection, third-party-sharing, retention-deletion,
-user-control-consent, security-breach-notification, transparency-access.
+  The Privacy Fairness Index (PFI) uses 6 categories with the following weights:
+  - Data Collection Scope: 25%
+  - Third‑Party Sharing: 20%
+  - Retention & Deletion: 20%
+  - User Control & Consent: 15%
+  - Transparency & Access: 10%
+  - Security & Breach Notification: 10%
+  Total = 100%
+
+  Our 4‑category scoring system re‑maps these into aggregated dimensions, then
+  re‑scales and adds an external Legal Compliance History dimension not measured by PFI:
+  - Data Collection & Sharing: 0.40  (merges Data Collection 25% + Third‑Party Sharing 20% → 45% of PFI base)
+  - Transparency & User Control: 0.35 (merges User Control & Consent 15% + Transparency & Access 10% → 25% of PFI base)
+  - Retention & Security: 0.15 (merges Retention & Deletion 20% + Security & Breach Notification 10% → 30% of PFI base)
+  - Legal Compliance History: 0.10 (external regulatory record — not derived from PFI)
+  These four weights sum to 1.0. They are a separate methodological choice, not a
+  direct arithmetic scaling of PFI.
+  
+  **Exact algorithm formula:**
+  Score = sum over categories (category_weight × category_score)
+  where category_score = (sum of practice weights in category) / (max possible sum in category) × 100
+  practice weights are defined in seed data (0-100). If no practices in a category, category_score = 0.
+  The max possible sum in a category is the sum of all practice weights if every practice were fully implemented (weight = 100).
 - [ ] **COMP‑001‑6** – `tests/unit/company/domain/company.test.ts` – Full TDD suite with fixtures (Acme Corp, etc.)  
   `imports_from`: Company, PrivacyScore, etc.  
   `verification`: `pnpm test -- company.test.ts` passes, coverage ≥90%
@@ -306,13 +667,21 @@ user-control-consent, security-breach-notification, transparency-access.
 determinationDeadline (date of download + 90 days), compensationDailyFine ($200),
 status (pending/complete/suppressed).
 Note: All identifiers go on a permanent suppression list regardless of match status.
+- [ ] **BROK‑001‑3** – `src/brokers/domain/compliance_status.ts` – ComplianceStatus value object tracking broker compliance state  
+  `imports_from`: `Result`, `ValidationError`  
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **BROK‑001‑4** – `src/brokers/domain/broker-events.ts` – Domain events including `BrokerRegistered` event  
+  `imports_from`: none  
   `verification`: `pnpm tsc --noEmit`
 - [ ] **BROK‑001‑5** – `tests/unit/broker/domain/data_broker.test.ts` – Unit tests  
   `imports_from`: DataBroker, etc.  
   `verification`: pass, coverage ≥90%
 - [ ] **BROK‑001‑6** – `features/broker/broker-management.feature` – BDD scenarios  
   `verification`: `pnpm test:bdd` passes
-- [ ] **BROK‑001‑7** – Depth refactor check  
+- [ ] **BROK‑001‑7** – `tests/unit/broker/domain/compliance_status.test.ts` – Unit tests for ComplianceStatus value object  
+  `imports_from`: ComplianceStatus  
+  `verification`: pass, coverage ≥90%
+- [ ] **BROK‑001‑8** – Depth refactor check  
   `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage`
 
 ---
@@ -339,9 +708,15 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
 - [ ] **TECH‑001‑1** – `src/tech/domain/privacy_technology.ts` – PrivacyTechnology aggregate root  
   `imports_from`: TechnologyType, MaturityLevel  
   `verification`: `pnpm tsc --noEmit`
-- [ ] **TECH‑001‑2** – `src/tech/domain/technology_type.ts` – TechnologyType value object  
-  `imports_from`: `Result`, `ValidationError`  
+- [ ] **TECH‑001‑2** – `src/tech/domain/technology_type.ts` – TechnologyType value object
+  `imports_from`: `Result`, `ValidationError`
   `verification`: `pnpm tsc --noEmit`
+  **Allowed values (OECD PET taxonomy, 2026):**
+  - DATA_OBFUSCATION (e.g., differential privacy, noise addition)
+  - ENCRYPTED_PROCESSING (e.g., homomorphic encryption, confidential computing)
+  - FEDERATED_ANALYTICS (e.g., federated learning, split learning)
+  - DATA_ACCOUNTABILITY (e.g., privacy dashboards, consent mechanisms)
+  - PRIVACY_INFRASTRUCTURE (e.g., identity management, anonymization)
 - [ ] **TECH‑001‑3** – `src/tech/domain/maturity_level.ts` – MaturityLevel value object  
   `imports_from`: none  
   `verification`: `pnpm tsc --noEmit`  
@@ -358,6 +733,14 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
   `verification`: `pnpm test:bdd` passes
 - [ ] **TECH‑001‑8** – Depth refactor check  
   `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage`
+- [ ] **TECH‑001‑9** – `src/tech/domain/maturity_specification.ts` – Define maturity specification with clear rules for assigning maturity levels
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+  **Maturity criteria rules:**
+  - EXPERIMENTAL: Concept or proof-of-concept only; no peer-reviewed sources; no implementation references; zero adoption evidence
+  - EMERGING: At least one peer-reviewed source or academic paper; has implementation reference (GitHub repo, prototype); limited adoption (< 10 organizations)
+  - ESTABLISHED: Multiple peer-reviewed sources (3+); has production implementation references; measurable adoption (10-100 organizations); documented use cases
+  - MATURE: Extensive peer-reviewed literature (5+); multiple production implementations; widespread adoption (100+ organizations); industry standard or W3C/IETF specification; comprehensive documentation and tooling
 
 ---
 
@@ -390,8 +773,8 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
   `imports_from`: `Result`, `ValidationError`  
   `verification`: `pnpm tsc --noEmit`  
   **Research-backed tiers**: Critical (>10M records or immutable data like SSN, DNA), High (unauthorized sale, lack of consent for tracking), Moderate (insufficient disclosure), Low (technical violations without consumer harm)
-- [ ] **VIOL‑001‑4** – `src/violation/domain/company_reference.ts` – CompanyReference value object (companyId: string, companyName: string — populated by CompanyEvaluated event handler; see INT‑001)  
-  `imports_from`: none (primitives only)  
+- [ ] **VIOL‑001‑4** – `src/violation/domain/company_reference.ts` – CompanyReference value object (companyId: string, companyName: string, scoreAtViolation: number — populated by CompanyEvaluated event handler; see INT‑001). The `scoreAtViolation` field captures the company's privacy score at the time of the violation for historical accuracy.
+  `imports_from`: none (primitives only)
   `verification`: `pnpm tsc --noEmit`
 - [ ] **VIOL‑001‑5** – `src/violation/domain/violation-events.ts` – ViolationRecorded event  
   `imports_from`: none  
@@ -424,9 +807,10 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
 
 #### Subtasks for LAW‑001
 
-- [ ] **LAW‑001‑1** – `src/law/domain/privacy_law.ts` – PrivacyLaw aggregate root  
-  `imports_from`: Jurisdiction, AdequacyStatus, AdequacyDecision  
+- [ ] **LAW‑001‑1** – `src/law/domain/privacy_law.ts` – PrivacyLaw aggregate root with `lastVerifiedDate` field to track when legal data was last verified for accuracy
+  `imports_from`: Jurisdiction, AdequacyStatus, AdequacyDecision
   `verification`: `pnpm tsc --noEmit`
+  **Legal data freshness note**: Legal data has a cut-off date due to its static nature. The site should display a visible banner on legal pages like "Legal information last verified: [date]. This is not legal advice." The date should be populated from the `lastVerifiedDate` field or from `src/data/seed.json`.
 - [ ] **LAW‑001‑2** – `src/law/domain/jurisdiction.ts` – Jurisdiction value object  
   `imports_from`: `Result` from `src/shared/result.ts`, `ValidationError` from `src/shared/errors.ts`  
   `verification`: `pnpm tsc --noEmit`
@@ -436,7 +820,8 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
   `imports_from`: `Result`, `ValidationError`  
   `verification`: `pnpm tsc --noEmit`  
   **2026 updates**: Add fields: lawName (e.g., CCPA, CTDPA, MODPA), effectiveDate, keyRequirements (data minimization, universal opt-out, DPIA)  
-  **Note**: 20+ US states now have comprehensive privacy laws; adequacy decisions are jurisdiction-specific; value object holds list of applicable laws
+  **Note**: 20+ US states now have comprehensive privacy laws; adequacy decisions are jurisdiction-specific; value object holds list of applicable laws  
+  **EU-Brazil adequacy**: Include Brazil (BR) with decisionDate: "2026-01-27", sourceUrl: EC press release, full public+private scope (670M combined consumers)
 - [ ] **LAW‑001‑5** – `src/law/domain/law-events.ts` – LawUpdated event  
   `verification`: `pnpm tsc --noEmit`
 - [ ] **LAW‑001‑6** – `tests/unit/law/domain/privacy_law.test.ts` – Unit tests  
@@ -444,6 +829,80 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
 - [ ] **LAW‑001‑7** – `features/law/law-management.feature` – BDD scenarios  
   `verification`: `pnpm test:bdd` passes
 - [ ] **LAW‑001‑8** – Depth refactor check  
+  `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage`
+
+---
+
+### `LAW‑002` Implement Law repository | Status: `backlog`
+`depends_on`: `LAW‑001`, `DATA‑001`
+
+- [ ] **Parent** `LAW‑002` – Create persistence layer for PrivacyLaw aggregate.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Legal Compliance `Aggregate root:` N/A (infrastructure service implements LawRepository domain interface) |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/unit/law/infrastructure/memory_law_repository.test.ts `Red‑Green‑Refactor cycle:` 1) save and retrieve full aggregate, 2) find by jurisdiction |
+| **Deep module** | `Public interface:` LawRepository.save(), findById(), findByJurisdiction() `Hidden complexity:** Mapping primitives to value objects `Depth metric:` moderate – 3 methods, ~80 lines of mapping |
+| **Definition of done** | In‑memory repo loads from seed.json, mapping layer converts stored primitives to domain objects, tests pass |
+| **Out of scope** | Database migrations |
+| **Rules** | Repository returns entire aggregates; mapping inside infrastructure; explicit data mapping: primitives → Value Objects |
+| **Advanced patterns** | Repository pattern |
+| **Anti‑patterns** | Active Record, partial persistence |
+
+#### Subtasks for LAW-002
+
+- [ ] **LAW‑002‑1** – `src/law/infrastructure/law_repository.ts` – Repository interface
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **LAW‑002‑2** – `src/law/infrastructure/memory_law_repository.ts` – In‑memory implementation that loads from `src/data/seed.json`
+  `imports_from`: LawRepository, PrivacyLaw
+  `verification`: unit tests pass and repository loads seed data correctly
+- [ ] **LAW‑002‑3** – `tests/unit/law/infrastructure/memory_law_repository.test.ts` – Unit tests
+  `verification`: pass
+
+---
+
+### `SOFT‑001` Define Software/Applications domain model | Status: `backlog`
+`depends_on`: `ARCH‑001`
+
+- [ ] **Parent** `SOFT‑001` – Establish domain entities for consumer-facing software applications with privacy characteristics.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Software Evaluation `Aggregate root:` SoftwareApplication `Ubiquitous language:** SoftwareApplication, SoftwareCategory, Platform, SoftwareEvaluated (event) |
+| **BDD** | `Feature:` Researcher categorizes software `Scenario 1:` Valid software → classified with category and platforms `Scenario 2:` Missing source → rejected `Scenario 3:** Update evaluation when evidence changes |
+| **TDD** | `Test file(s):` tests/unit/software/domain/software_application.test.ts `Red‑Green‑Refactor cycle:` 1) create with category, 2) validate platforms, 3) reject missing source, 4) test event publication |
+| **Deep module** | `Public interface:** classify(), getPlatforms(), getDataCollectionPractices() `Hidden complexity:** Validation, practice assessment (~120 lines) `Depth metric:** moderate – 3 methods, ~120 lines |
+| **Definition of done** | Domain model, events, `.feature` file, tests |
+| **Out of scope** | Real-time monitoring, automated research analysis |
+| **Rules** | Software must cite verifiable sources; categories distinguish consumer software from enabling technologies (TECH-001) |
+| **Advanced patterns** | Specification for categories, Domain Events |
+| **Anti‑patterns** | Subjective classification, overlap with Technology domain |
+
+#### Subtasks for SOFT‑001
+
+- [ ] **SOFT‑001‑1** – `src/software/domain/software_application.ts` – SoftwareApplication aggregate root
+  `imports_from`: SoftwareCategory, Platform
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **SOFT‑001‑2** – `src/software/domain/software_category.ts` – SoftwareCategory value object
+  `imports_from`: `Result`, `ValidationError`
+  `verification`: `pnpm tsc --noEmit`
+  **Allowed values**: BROWSER, MESSAGING, EMAIL, VPN, PASSWORD_MANAGER, CLOUD_STORAGE, VIDEO_CONFERENCING, SEARCH_ENGINE
+- [ ] **SOFT‑001‑3** – `src/software/domain/platform.ts` – Platform value object
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **SOFT‑001‑4** – `src/software/domain/data_collection_practices.ts` – DataCollectionPractices value object with structure: collectionTypes (array of strings), purposes (array of strings), sharing (boolean), thirdParty (boolean), retentionPeriod (string), sourceUrl (string), lastVerifiedDate (string)
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **SOFT‑001‑5** – `src/software/domain/software-events.ts` – SoftwareEvaluated event
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **SOFT‑001‑6** – `tests/unit/software/domain/software_application.test.ts` – Unit tests
+  `verification`: pass
+- [ ] **SOFT‑001‑7** – `features/software/software-evaluation.feature` – BDD scenarios
+  `verification`: `pnpm test:bdd` passes
+- [ ] **SOFT‑001‑8** – Depth refactor check
   `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage`
 
 ---
@@ -479,9 +938,9 @@ Note: All identifiers go on a permanent suppression list regardless of match sta
 (key pattern: category:{value}:{companyId}). For v1 static build, write rate
 limits (1/sec/key) are not a concern. For v2 with SSR, consider D1 or Durable
 Objects for write‑heavy workloads.
-- [ ] **COMP‑002‑4** – `tests/integration/company/infrastructure/cloudflare_kv_repository.test.ts` – Integration tests  
-  `verification`: pass  
-  (Note: Cloudflare KV is eventually consistent; tests must include retry/wait logic.)
+- [ ] **COMP‑002‑4** – `tests/integration/company/infrastructure/cloudflare_kv_repository.test.ts` – Integration tests
+  `verification`: pass
+  (Note: Cloudflare KV is eventually consistent (up to 60s). Use `vi.waitFor` with timeout to retry assertions until the KV change propagates, e.g. `await vi.waitFor(() => expect(...), { timeout: 10_000 })`.)
 - [ ] **COMP‑002‑5** – `tests/unit/company/infrastructure/memory_repository.test.ts` – Unit tests for in‑memory  
   `verification`: pass
 - [ ] **COMP‑002‑6** – Depth refactor check (repository is inherently shallow; ensure it remains simple)  
@@ -512,8 +971,9 @@ Objects for write‑heavy workloads.
   `verification`: `pnpm tsc --noEmit`
 - [ ] **BROK‑002‑2** – `src/brokers/infrastructure/drop_broker_registry.ts` – Implementation (uses CSV parser internally)  
   `verification`: integration tests pass
-- [ ] **BROK‑002‑3** – `src/brokers/infrastructure/csv_parser.ts` – Data‑broker registry adapter (handles hashed identifier lists from DROP; CSV parsing may be one possible format, but final format determined by CA DROP API).  
-  `verification`: `pnpm tsc --noEmit`
+- [ ] **BROK‑002‑3** – `src/brokers/infrastructure/csv_parser.ts` – Data‑broker registry adapter (handles hashed identifier lists from DROP; CSV parsing may be one possible format, but final format determined by CA DROP API). Add `src/brokers/infrastructure/json_parser.ts` stub with same interface as fallback if API returns JSON.
+  `verification`: `pnpm tsc --noEmit` and both CSV and JSON parser interfaces match
+  **⚠️ Provisional**: This parser implementation is provisional and must be revisited once the CA DROP API specification is available (expected August 2026). The actual API may return JSON or a different identifier manifest format. JSON parser stub provided as fallback.
 - [ ] **BROK‑002‑4** – `tests/integration/broker/infrastructure/drop_adapter.test.ts` – Integration tests (mocked HTTP)  
   `verification`: pass
 - [ ] **BROK‑002‑5** – Depth refactor check  
@@ -523,8 +983,8 @@ Objects for write‑heavy workloads.
 
 ## Phase 2.5 – Seed Data & Content Strategy
 
-### `DATA‑001` Create shared seed data for all stubs | Status: `backlog`  
-`depends_on`: none (independent research)
+### `DATA‑001` Create shared seed data for all stubs | Status: `backlog`
+`depends_on`: `DATA‑002`
 
 - [ ] **Parent** `DATA‑001` – Create comprehensive seed data for all application services.
 
@@ -544,23 +1004,93 @@ Objects for write‑heavy workloads.
 
 - [ ] **DATA‑001‑1** – `src/data/seed.json` – Create seed data structure with sections: `technologies`, `violations`, `laws`  
   `imports_from`: none  
-  `verification`: file exists and valid JSON with three sections
-- [ ] **DATA‑001‑2** – Populate each section with at least 3‑5 verified entries using research sources  
-  `imports_from`: none  
-  `verification`: each entry has `source_url` field pointing to primary source
+  `verification`: `test -f src/data/seed.json && pnpm tsc --noEmit`
+- [ ] **DATA‑001‑2** – Populate each section with exact entries specified in content brief (DATA-002): 5 companies, 5 technologies, 5 devices, 5 software, 5 violations, 5 laws
+  `imports_from`: none
+  `verification`: each entry has `source_url` field pointing to primary source and counts match content brief
+  **Legal data freshness note**: Legal data has a cut-off date due to its static nature. The site should display a visible banner on legal pages like "Legal information last verified: [date]. This is not legal advice." The date should be populated from `src/data/seed.json` or a constant.
 - [ ] **DATA‑001‑3** – Apply neutral framing convention to all entities  
   `imports_from`: none  
   `verification`: grep finds no "good/bad" language in seed data
-- [ ] **DATA‑001‑4** – Align seed data with updated domain models (new PrivacyScore weights, CA DROP details, 2026 law list)  
+- [ ] **DATA-001-4** - Align seed data with updated domain models (new PrivacyScore weights, CA DROP details, 2026 law list)  
   `imports_from`: none  
-  `verification`: `pnpm test` (all stubs load seed data correctly)
+  `verification`: `pnpm test` (all stubs load seed data correctly)  
+  **Schema validation**: Use Zod from local import (add to package.json if not already present) to define schema for seed.json and add validation step
 Complete 2026 US state law abbreviations:
 CCPA/CPRA, VCDPA, CPA, CTDPA, UCPA, ICDPA, INCDPA, TIPA, TDPSA, FDBR, MODPA,
 MCDPA (MN), MCDPA (MT), OCPA, DPDPA, NHDPA, NJDPA, KYCDPA, NDPA, RHDPA.
 Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 - [ ] **DATA‑001‑5** – `docs/neutral-language-guide.md` – Create style guide for factual, sourced approach  
   `imports_from`: none  
-  `verification`: file exists with neutral framing guidelines
+  `verification`: `test -f docs/neutral-language-guide.md && pnpm tsc --noEmit`
+- [ ] **DATA-001-6** – Add `devices` section to seed data with 5 exact entries:
+  1. Punkt MC03 (minimalist privacy phone, launched Jan 2026)
+  2. Purism Librem 5 (PureOS Crimson, Mar 2026)
+  3. PinePhone Pro (Linux-based, hardware kill switches)
+  4. Jolla Phone (Sailfish OS, European privacy focus)
+  5. Hiroh smartphone (privacy-focused, 2026)
+  `imports_from`: none  
+  `verification`: `src/data/seed.json` contains these 5 entries with source_url fields
+
+---
+
+### `DATA‑002` Create content brief specifying exact seed data entries | Status: `backlog`
+`depends_on`: `DATA‑001`
+
+- [ ] **Parent** `DATA‑002` – Create explicit content brief to prevent AI execution ambiguity for seed data.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Data Management (enabling) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – documentation task |
+| **Definition of done** | `docs/content-brief.md` explicitly lists every entry for seed data with names, sources, and key attributes |
+| **Out of scope** | Actual content creation (done in DATA-001) |
+| **Rules** | Content brief specifies exact entities to include; prevents AI execution ambiguity |
+| **Advanced patterns** | Content specification |
+| **Anti‑patterns** | Ambiguous "3–5 entries" without specifics |
+
+#### Subtasks for DATA‑002
+
+- [ ] **DATA‑002‑1** – `docs/content-brief.md` – Create content brief with exact entries
+  `imports_from`: none
+  `verification`: `test -f docs/content-brief.md && pnpm tsc --noEmit`
+  - Companies: 5 entries with names, practices, sources
+  - Technologies: 5 entries (e.g., differential privacy, homomorphic encryption, federated learning, confidential computing, secure multi-party computation)
+  - Devices: 5 entries (Punkt MC03, Purism Librem 5, PinePhone Pro, Jolla Phone, Hiroh smartphone)
+  - Software: 5 entries (Signal, Brave Browser, Proton Mail, Mullvad VPN, Bitwarden)
+  - Violations: 5 entries with dates, companies, severity, sources
+  - Laws: 5 entries covering major jurisdictions
+  - California DROP statistics: Include key statistics about the California DROP platform (e.g., number of registered data brokers, deletion request volume, compliance rate)
+
+---
+
+### `DATA‑003` Content Audit Checklist | Status: `backlog`
+`depends_on`: `DATA‑002`
+
+- [ ] **Parent** `DATA‑003` – Create neutral-framing audit checklist for content validation.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Data Management (enabling) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | N/A |
+| **Deep module** | N/A – documentation and tooling |
+| **Definition of done** | Neutral-framing checklist document created, automated grep script for banned adjectives in place |
+| **Out of scope** | Automated content generation |
+| **Rules** | All content must be neutral and factual; no subjective labels like "good", "bad", "ethical", "unethical" |
+| **Advanced patterns** | Automated validation |
+| **Anti‑patterns** | Subjective language, opinionated descriptions |
+
+#### Subtasks for DATA‑003
+
+- [ ] **DATA‑003‑1** – `docs/content-audit-checklist.md` – 5-point neutral-framing checklist for content validation
+  `imports_from`: none
+  `verification`: `test -f docs/content-audit-checklist.md && pnpm tsc --noEmit`
+- [ ] **DATA‑003‑2** – `scripts/audit-neutral-language.sh` – Automated grep script for banned adjectives (good, bad, ethical, unethical, etc.)
+  `imports_from`: none
+  `verification`: script exists and runs without errors
 
 ---
 
@@ -585,12 +1115,16 @@ Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 
 #### Subtasks for APP‑001
 
-- [ ] **APP‑001‑1** – `src/companies/application/company_query_service.ts` – Service implementation  
+- [ ] **APP‑001‑1** – `src/companies/application/company_query_service.ts` – Service implementation
+  `imports_from`: CompanyQueryService, CompanyDTO, CompanyRepository
   `verification`: tests pass
 - [ ] **APP‑001‑2** – `src/companies/application/company_dto.ts` – DTO definition  
   `verification`: `pnpm tsc --noEmit`
 - [ ] **APP‑001‑3** – `tests/unit/company/application/company_query_service.test.ts` – Unit tests  
   `verification`: pass
+- [ ] **APP‑001‑4** – `tests/unit/company/application/company_query_service_error.test.ts` – Error path tests
+  `imports_from`: CompanyQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
 
 ---
 
@@ -612,12 +1146,16 @@ Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 
 #### Subtasks for APP‑002
 
-- [ ] **APP‑002‑1** – `src/brokers/application/broker_query_service.ts` – Implementation  
+- [ ] **APP‑002‑1** – `src/brokers/application/broker_query_service.ts` – Implementation
+  `imports_from`: BrokerQueryService, BrokerDTO, BrokerRepository
   `verification`: tests pass
 - [ ] **APP‑002‑2** – `src/brokers/application/broker_dto.ts` – DTO  
   `verification`: `pnpm tsc --noEmit`
 - [ ] **APP‑002‑3** – `tests/unit/broker/application/broker_query_service.test.ts` – Tests  
   `verification`: pass
+- [ ] **APP‑002‑4** – `tests/unit/broker/application/broker_query_service_error.test.ts` – Error path tests
+  `imports_from`: BrokerQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
 
 ---
 
@@ -649,6 +1187,9 @@ Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 - [ ] **APP‑003‑3** – `tests/unit/tech/application/technology_query_service.test.ts` – Unit tests  
   `imports_from`: TechnologyQueryService, TechnologyDTO  
   `verification`: pass, coverage ≥70%
+- [ ] **APP‑003‑4** – `tests/unit/tech/application/technology_query_service_error.test.ts` – Error path tests
+  `imports_from`: TechnologyQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
 
 ---
 
@@ -680,6 +1221,9 @@ Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 - [ ] **APP‑004‑3** – `tests/unit/violation/application/violation_query_service.test.ts` – Unit tests  
   `imports_from`: ViolationQueryService, ViolationDTO  
   `verification`: pass, coverage ≥70%
+- [ ] **APP‑004‑4** – `tests/unit/violation/application/violation_query_service_error.test.ts` – Error path tests
+  `imports_from`: ViolationQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
 
 ---
 
@@ -711,6 +1255,43 @@ Oklahoma (ODPA) effective Jan 1, 2027 (not included in v1 seed).
 - [ ] **APP‑005‑3** – `tests/unit/law/application/legal_query_service.test.ts` – Unit tests  
   `imports_from`: LegalQueryService, LawDTO  
   `verification`: pass, coverage ≥70%
+- [ ] **APP‑005‑4** – `tests/unit/law/application/legal_query_service_error.test.ts` – Error path tests
+  `imports_from`: LegalQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
+
+---
+
+### `APP‑006` Software query service and DTOs | Status: `backlog`
+`depends_on`: `SOFT‑001`, `DATA‑001`
+
+- [ ] **Parent** `APP‑006` – Provide software application data.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Software Evaluation (application) `Aggregate root:` N/A `Ubiquitous language:** SoftwareDTO, category, platform |
+| **BDD** | N/A – internal service |
+| **TDD** | `Test file(s):` tests/unit/software/application/software_query_service.test.ts `Red‑Green‑Refactor cycle:** 1) return all software, 2) filter by category, 3) filter by platform |
+| **Deep module** | `Public interface:** getSoftware(filter) → SoftwareDTO[] `Hidden complexity:** In‑memory stub, DTO mapping `Depth metric:** shallow‑moderate |
+| **Definition of done** | Service with in‑memory stub using shared seed data, DTO definition, tests ≥70% coverage |
+| **Out of scope** | Write operations, persistence via Cloudflare KV deferred to v2; v1 uses static seed data loaded from `src/data/seed.json`. Repository implementation will be retrofitted in v2; stub uses the same interface. |
+| **Rules** | DTOs only; no domain objects leaked; stub uses shared seed data from `DATA‑001` |
+| **Advanced patterns** | DTO mapping functions |
+| **Anti‑patterns** | Returning domain objects directly |
+
+#### Subtasks for APP‑006
+
+- [ ] **APP‑006‑1** – `src/software/application/software_query_service.ts` – Service implementation (in‑memory stub)
+  `imports_from`: SoftwareDTO
+  `verification`: tests pass
+- [ ] **APP‑006‑2** – `src/software/application/software_dto.ts` – DTO definition (id, name, category, platforms, dataCollectionPractices, encryptionDefault, openSource, sourceUrl)
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **APP‑006‑3** – `tests/unit/software/application/software_query_service.test.ts` – Unit tests
+  `imports_from`: SoftwareQueryService, SoftwareDTO
+  `verification`: pass, coverage ≥70%
+- [ ] **APP‑006‑4** – `tests/unit/software/application/software_query_service_error.test.ts` – Error path tests
+  `imports_from`: SoftwareQueryService, IntegrationError, ValidationError
+  `verification`: tests pass; covers repository throws → IntegrationError, invalid filter → ValidationError
 
 ---
 
@@ -722,6 +1303,37 @@ Hydration strategy: Static pages use Astro .astro files (zero JS shipped).
 Interactive components (CompanyListing, BrokerDashboard, etc.) use React islands
 with targeted hydration directives: client:visible for filter panels and listings,
 client:idle for search bars and auxiliary widgets.
+
+### `WEB‑012` Base Layout, Error Handling & 404 | Status: `backlog`
+`depends_on`: `ARCH‑006`, `ARCH‑009`, `ARCH‑010`
+
+- [ ] **Parent** `WEB‑012` – Create base layout and error handling infrastructure.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/unit/web/components/error_boundary.test.ts |
+| **Deep module** | N/A – infrastructure |
+| **Definition of done** | BaseLayout with Head, Navigation, Footer, CSP meta, view-transition meta; ErrorBoundary for React islands; custom 404 page using BaseLayout |
+| **Out of scope** | Dynamic error pages (deferred to v2) |
+| **Rules** | All pages use BaseLayout; ErrorBoundary wraps React islands; 404 page uses BaseLayout |
+| **Advanced patterns** | Error boundary pattern, Progressive enhancement |
+| **Anti‑patterns** | Missing error handling, inconsistent layouts |
+
+#### Subtasks for WEB‑012
+
+- [ ] **WEB‑012‑1** – `src/layouts/BaseLayout.astro` – Page shell with `<Head />`, `<Navigation />`, `<Footer />`, CSP meta tags, view-transition meta (`<meta name="view-transition" content="same-origin" />`), and `<slot />` for page content
+  `imports_from`: Head, Navigation, Footer
+  `verification`: `pnpm build` succeeds and BaseLayout renders correctly
+- [ ] **WEB‑012‑2** – `src/web/components/ErrorBoundary.tsx` – React error boundary for client islands
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit` compiles and unit tests pass
+- [ ] **WEB‑012‑3** – `src/pages/404.astro` – Custom 404 page using BaseLayout
+  `imports_from`: BaseLayout
+  `verification`: page renders at `/404` with BaseLayout
+
+---
 
 ### `WEB‑001` Company listing page | Status: `backlog`  
 `depends_on`: `APP‑001`
@@ -754,7 +1366,7 @@ client:idle for search bars and auxiliary widgets.
 - [ ] **WEB‑001‑4** – `tests/unit/web/components/company_listing.test.ts` – Component tests  
   `imports_from`: CompanyListing  
   `verification`: pass
-- [ ] **WEB‑001‑5** – `features/company/company-browsing.feature` – Gherkin scenarios (visitor actor)  
+- [ ] **WEB‑001‑5** – `features/company/company-browsing.feature` – Gherkin scenarios (visitor actor). Note: This feature is distinct from COMP-001-7's `company-evaluation.feature`, which covers admin-side evaluation workflows. This feature focuses on visitor-side browsing and filtering.
   `verification`: `pnpm test:bdd` passes
 
 ---
@@ -785,11 +1397,10 @@ client:idle for search bars and auxiliary widgets.
   `verification`: `pnpm tsc --noEmit`
 - [ ] **WEB‑002‑4** – `tests/unit/web/components/broker_dashboard.test.ts` – Tests  
   `imports_from`: BrokerDashboard  
-  `verification`: pass
+  `verification`: pass  
+  **Error-state testing**: Include test cases for loading spinner, empty state message, and network error message
 - [ ] **WEB‑002‑5** – `features/broker/broker-dashboard.feature` – Scenarios  
   `verification`: `pnpm test:bdd`
-- [ ] **WEB‑002‑6** – Depth refactor check: verify component structure and integration  
-  `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage && pnpm build`
 
 ---
 
@@ -817,13 +1428,12 @@ client:idle for search bars and auxiliary widgets.
 - [ ] **WEB‑003‑3** – `src/web/components/maturity_badge.tsx` – Maturity indicator  
   `imports_from`: none  
   `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑003‑4** – `tests/unit/web/components/technology_showcase.test.ts` – Component tests  
+- [ ] **WEB-003-4** - `tests/unit/web/components/technology_showcase.test.ts` - Component tests  
   `imports_from`: TechnologyShowcase  
-  `verification`: pass
+  `verification`: pass  
+  **Error-state testing**: Include test cases for loading spinner, empty state message, and network error message
 - [ ] **WEB‑003‑5** – `features/tech/technology-browsing.feature` – Gherkin scenarios  
   `verification`: `pnpm test:bdd` passes
-- [ ] **WEB‑003‑6** – Depth refactor check: verify component structure and integration  
-  `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage && pnpm build`
 
 ---
 
@@ -851,13 +1461,12 @@ client:idle for search bars and auxiliary widgets.
 - [ ] **WEB‑004‑3** – `src/web/components/severity_indicator.tsx` – Severity color indicator  
   `imports_from`: none  
   `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑004‑4** – `tests/unit/web/components/violation_tracker.test.ts` – Component tests  
+- [ ] **WEB-004-4** - `tests/unit/web/components/violation_tracker.test.ts` - Component tests  
   `imports_from`: ViolationTracker  
-  `verification`: pass
+  `verification`: pass  
+  **Error-state testing**: Include test cases for loading spinner, empty state message, and network error message
 - [ ] **WEB‑004‑5** – `features/violation/violation-tracking.feature` – Gherkin scenarios  
   `verification`: `pnpm test:bdd` passes
-- [ ] **WEB‑004‑6** – Depth refactor check: verify component structure and integration  
-  `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage && pnpm build`
 
 ---
 
@@ -876,95 +1485,181 @@ client:idle for search bars and auxiliary widgets.
 
 #### Subtasks for WEB‑005
 
-- [ ] **WEB‑005‑1** – `src/web/components/legal_guide.tsx` – Main component  
-  `imports_from`: LegalQueryService, LawDTO  
+- [ ] **WEB‑005‑1** – `src/web/components/legal_guide.tsx` – Main component with inline AdequacyIndicator and LegalDisclaimer sub-components
+  `imports_from`: LegalQueryService, LawDTO
   `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑005‑2** – `src/web/components/jurisdiction_selector.tsx` – Jurisdiction filter  
-  `imports_from`: none  
+- [ ] **WEB‑005‑2** – `src/web/components/jurisdiction_selector.tsx` – Jurisdiction filter
+  `imports_from`: none
   `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑005‑3** – `src/web/components/adequacy_indicator.tsx` – Adequacy status indicator  
-  `imports_from`: none  
-  `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑005‑4** – `src/web/components/legal_disclaimer.tsx` – Legal disclaimer component  
-  `imports_from`: none  
-  `verification`: `pnpm tsc --noEmit`
-- [ ] **WEB‑005‑5** – `tests/unit/web/components/legal_guide.test.ts` – Component tests  
-  `imports_from`: LegalGuide  
+- [ ] **WEB‑005‑3** – `tests/unit/web/components/legal_guide.test.ts` – Component tests
+  `imports_from`: LegalGuide
   `verification`: pass
-- [ ] **WEB‑005‑6** – `features/law/legal-guide.feature` – Gherkin scenarios  
+  **Error-state testing**: Include test cases for loading spinner, empty state message, and network error message
+- [ ] **WEB‑005‑4** – `features/law/legal-guide.feature` – Gherkin scenarios
   `verification`: `pnpm test:bdd` passes
-- [ ] **WEB‑005‑7** – Depth refactor check: verify component structure and integration  
-  `verification`: `pnpm lint && pnpm tsc --noEmit && pnpm test -- coverage && pnpm build`
 
 ---
 
-### `WEB‑006` Create Astro pages that wire the components | Status: `backlog`  
-`depends_on`: `ARCH‑001`
+### `WEB‑006A` Core feature pages | Status: `backlog`
+`depends_on`: `WEB‑002`, `WEB‑003`, `WEB‑004`, `ARCH‑012`
 
-- [ ] **Parent** `WEB‑006` – Build complete page structure using components.
+- [ ] **Parent** `WEB‑006A` – Build core directory and listing pages.
 
 | Aspect | Detail |
 | :--- | :--- |
 | **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
-| **BDD** | `Feature:` Visitor navigates site `Scenario 1:` Visit companies page → see listing `Scenario 2:` Visit data brokers page → see dashboard `Scenario 3:` Visit practices pages → see content |
-| **TDD** | `Test file(s):` tests/integration/pages.test.ts |
+| **BDD** | `Feature:` Visitor navigates site `Scenario 1:` Visit homepage → see overview `Scenario 2:` Visit companies page → see listing `Scenario 3:` Visit technologies page → see showcase `Scenario 4:` Visit data brokers page → see dashboard |
+| **TDD** | `Test file(s):` tests/integration/pages.test.ts (partial) |
 | **Deep module** | N/A – page wiring |
-| **Definition of done** | All Astro pages created and accessible via `pnpm build` |
+| **Definition of done** | Core pages created and accessible via `pnpm build` |
 | **Out of scope** | Dynamic routing |
-| **Rules** | Pages consume components; components handle loading/empty/error states; Pages can be implemented as soon as their corresponding query service is ready; mocks/stubs may be used during development. |
+| **Rules** | Pages consume components; use BaseLayout; use `import.meta.env.SITE` instead of deprecated `Astro.site` API; add `<meta name="view-transition" content="same-origin" />` in head for progressive enhancement |
 | **Advanced patterns** | Astro static routing |
 | **Anti‑patterns** | Missing pages, broken navigation |
-| **Optional Enhancement** | Consider using Astro's View Transitions API for SPA‑like navigation between pages, preserving state where appropriate. |
 
-#### Subtasks for WEB‑006
+#### Subtasks for WEB‑006A
 
-- [ ] **WEB‑006‑1** – `src/pages/companies.astro` – Uses `<CompanyListing />` and `CompanyQueryService`  
-  `imports_from`: CompanyListing  
-  `verification`: page renders at `/companies`
-- [ ] **WEB‑006‑2** – `src/pages/technologies.astro` – Uses `<TechnologyShowcase />` with filter for all technologies  
-  `imports_from`: TechnologyShowcase  
-  `verification`: page renders at `/technologies`
-- [ ] **WEB‑006‑3** – `src/pages/data-brokers.astro` – Uses `<BrokerDashboard />`  
-  `imports_from`: BrokerDashboard  
-  `verification`: page renders at `/data-brokers`
-- [ ] **WEB‑006‑4** – `src/pages/practices/data-collection.astro` – Content page with fact‑based lists  
-  `imports_from`: none  
-  `verification`: page renders at `/practices/data-collection`
-- [ ] **WEB‑006‑5** – `src/pages/practices/data-breaches.astro` – Displays violation data using `<ViolationTracker />`  
-  `imports_from`: ViolationTracker  
-  `verification`: page renders at `/practices/data-breaches`
-- [ ] **WEB‑006‑6** – `src/pages/practices/regulatory-actions.astro` – Uses `<LegalGuide />` filtered for enforcement actions  
-  `imports_from`: LegalGuide  
-  `verification`: page renders at `/practices/regulatory-actions`
-- [ ] **WEB‑006‑7** – `src/pages/practices/surveillance.astro` – Static content page on tracking methods  
-  `imports_from`: none  
-  `verification`: page renders at `/practices/surveillance`
-- [ ] **WEB‑006‑8** – `src/pages/practices/smart-devices.astro` – IoT privacy risks  
-  `imports_from`: none  
-  `verification`: page renders at `/practices/smart-devices`
-- [ ] **WEB‑006‑9** – `src/pages/practices/platforms.astro` – OS comparisons  
-  `imports_from`: none  
-  `verification`: page renders at `/practices/platforms`
-- [ ] **WEB‑006‑10** – `src/pages/take-action.astro` – Consumer guidance page  
-  `imports_from`: none  
-  `verification`: page renders at `/take-action`
-- [ ] **WEB‑006‑11** – `src/pages/methodology.astro` – Explains scoring and evaluation  
-  `imports_from`: none  
-  `verification`: page renders at `/methodology`
-- [ ] **WEB‑006‑12** – `src/pages/glossary.astro` – Ubiquitous language terms  
-  `imports_from`: none  
-  `verification`: page renders at `/glossary`
-- [ ] **WEB‑006‑13** – `src/pages/about.astro` – Standard about page  
-  `imports_from`: none  
-  `verification`: page renders at `/about`
-- [ ] **WEB‑006‑14** – `src/pages/index.astro` – Homepage with site overview and navigation to main sections  
-  `imports_from`: none  
-  `verification`: page renders at `/`
-- [ ] **WEB‑006‑15** – `src/pages/sitemap.astro` – XML sitemap for SEO and navigation  
-  `imports_from`: none  
-  `verification`: page renders at `/sitemap.xml`
-- [ ] **WEB‑006‑16** – `tests/integration/pages.test.ts` – Verify all pages build and are accessible  
-  `verification`: `pnpm build` succeeds and all pages accessible
+- [ ] **WEB‑006A‑1** – `src/pages/index.astro` – Homepage with site overview and navigation to main sections. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006A‑2** – `src/pages/companies.astro` – Uses `<CompanyListing />` and `CompanyQueryService`. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: CompanyListing
+  `verification`: page renders at `/companies` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006A‑3** – `src/pages/technologies.astro` – Uses `<TechnologyShowcase />` with filter for all technologies. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: TechnologyShowcase
+  `verification`: page renders at `/technologies` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006A‑4** – `src/pages/data-brokers.astro` – Uses `<BrokerDashboard />`. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: BrokerDashboard
+  `verification`: page renders at `/data-brokers` and grep finds no `Astro.site` usage
+
+---
+
+### `WEB‑006B` Practice content pages | Status: `backlog`
+`depends_on`: `WEB‑005`, `ARCH‑012`
+
+- [ ] **Parent** `WEB‑006B` – Build privacy practice educational pages.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | `Feature:` Visitor learns about practices `Scenario 1:` Visit data collection page → see practices `Scenario 2:` Visit data breaches page → see violation data `Scenario 3:` Visit regulatory actions page → see legal guide `Scenario 4:` Visit surveillance page → see tracking methods |
+| **TDD** | `Test file(s):` tests/integration/pages.test.ts (partial) |
+| **Deep module** | N/A – page wiring |
+| **Definition of done** | Practice pages created and accessible via `pnpm build` |
+| **Out of scope** | Dynamic routing |
+| **Rules** | Pages consume components where applicable; use BaseLayout; use `import.meta.env.SITE` instead of deprecated `Astro.site` API; add `<meta name="view-transition" content="same-origin" />` in head |
+| **Advanced patterns** | Astro static routing |
+| **Anti‑patterns** | Missing pages, broken navigation |
+
+#### Subtasks for WEB‑006B
+
+- [ ] **WEB‑006B‑1** – `src/pages/practices/data-collection.astro` – Content page with fact‑based lists. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/practices/data-collection` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006B‑2** – `src/pages/practices/data-breaches.astro` – Displays violation data using `<ViolationTracker />`. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: ViolationTracker
+  `verification`: page renders at `/practices/data-breaches` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006B‑3** – `src/pages/practices/regulatory-actions.astro` – Uses `<LegalGuide />` filtered for enforcement actions. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: LegalGuide
+  `verification`: page renders at `/practices/regulatory-actions` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006B‑4** – `src/pages/practices/surveillance.astro` – Static content page on tracking methods. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/practices/surveillance` and grep finds no `Astro.site` usage
+
+---
+
+### `WEB‑006C` Resource & comparison pages | Status: `backlog`
+`depends_on`: `ARCH‑012`
+
+- [ ] **Parent** `WEB‑006C` – Build resource and comparison pages.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | `Feature:` Visitor explores resources `Scenario 1:` Visit smart devices page → see IoT risks `Scenario 2:` Visit software comparison page → see OS comparisons `Scenario 3:` Visit devices page → see hardware privacy `Scenario 4:` Visit platforms page → see platform comparisons |
+| **TDD** | `Test file(s):` tests/integration/pages.test.ts (partial) |
+| **Deep module** | N/A – page wiring |
+| **Definition of done** | Resource pages created and accessible via `pnpm build` |
+| **Out of scope** | Dynamic routing |
+| **Rules** | Pages consume components where applicable; use BaseLayout; use `import.meta.env.SITE` instead of deprecated `Astro.site` API; add `<meta name="view-transition" content="same-origin" />` in head |
+| **Advanced patterns** | Astro static routing |
+| **Anti‑patterns** | Missing pages, broken navigation |
+
+#### Subtasks for WEB‑006C
+
+- [ ] **WEB‑006C‑1** – `src/pages/practices/smart-devices.astro` – IoT privacy risks. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/practices/smart-devices` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006C‑2** – `src/pages/practices/software-comparison.astro` – OS comparisons (renamed from platforms.astro). Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/practices/software-comparison` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006C‑3** – `src/pages/devices.astro` – Privacy-focused hardware page rendering device cards from seed data. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none (reads from seed data directly)
+  `verification`: page renders at `/devices` with device information from `src/data/seed.json` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006C‑4** – `src/pages/practices/platforms.astro` – Platform comparisons. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/practices/platforms` and grep finds no `Astro.site` usage
+
+---
+
+### `WEB‑006D` Meta & informational pages | Status: `backlog`
+`depends_on`: `ARCH‑012`
+
+- [ ] **Parent** `WEB‑006D` – Build meta and informational pages.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | `Feature:` Visitor accesses site information `Scenario 1:` Visit take action page → see consumer guidance `Scenario 2:` Visit methodology page → see scoring explanation `Scenario 3:` Visit glossary page → see ubiquitous language `Scenario 4:` Visit about page → see site information `Scenario 5:` Visit sitemap → see XML sitemap |
+| **TDD** | `Test file(s):` tests/integration/pages.test.ts (partial) |
+| **Deep module** | N/A – page wiring |
+| **Definition of done** | Meta pages created and accessible via `pnpm build` |
+| **Out of scope** | Dynamic routing |
+| **Rules** | Pages use BaseLayout; use `import.meta.env.SITE` instead of deprecated `Astro.site` API; add `<meta name="view-transition" content="same-origin" />` in head |
+| **Advanced patterns** | Astro static routing |
+| **Anti‑patterns** | Missing pages, broken navigation |
+
+#### Subtasks for WEB‑006D
+
+- [ ] **WEB‑006D‑1** – `src/pages/take-action.astro` – Consumer guidance page. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/take-action` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006D‑2** – `src/pages/methodology.astro` – Explains scoring and evaluation. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/methodology` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006D‑3** – `src/pages/glossary.astro` – Ubiquitous language terms. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/glossary` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006D‑4** – `src/pages/about.astro` – Standard about page. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/about` and grep finds no `Astro.site` usage
+- [ ] **WEB‑006D‑5** – `src/pages/sitemap.astro` – XML sitemap for SEO and navigation. Uses `import.meta.env.SITE` instead of deprecated `Astro.site` API. Add `<meta name="view-transition" content="same-origin" />` in head.
+  `imports_from`: none
+  `verification`: page renders at `/sitemap.xml` and grep finds no `Astro.site` usage
+
+---
+
+### `WEB‑006E` Page integration verification | Status: `backlog`
+`depends_on`: `WEB‑006A`, `WEB‑006B`, `WEB‑006C`, `WEB‑006D`
+
+- [ ] **Parent** `WEB‑006E` – Verify all pages build and are accessible.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A |
+| **TDD** | `Test file(s):` tests/integration/pages.test.ts |
+| **Deep module** | N/A – verification |
+| **Definition of done** | All pages build successfully, are accessible, and Astro 6 API compliance verified |
+| **Out of scope** | Dynamic routing |
+| **Rules** | Verify no `Astro.site` or deprecated API usage across all pages |
+| **Advanced patterns** | Integration testing |
+| **Anti‑patterns** | Broken builds, missing pages |
+
+#### Subtasks for WEB‑006E
+
+- [ ] **WEB‑006E‑1** – `tests/integration/pages.test.ts` – Verify all pages build and are accessible, and verify Astro 6 API compliance across all pages
+  `verification`: `pnpm build` succeeds, all pages accessible, and grep finds no `Astro.site` usage in any page
 
 ---
 
@@ -1000,6 +1695,96 @@ client:idle for search bars and auxiliary widgets.
 
 ---
 
+### `WEB‑009` Software & Applications page | Status: `backlog`
+`depends_on`: `APP‑006`
+
+- [ ] **Parent** `WEB‑009` – Build software applications page with category filtering and platform indicators.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | `Feature:` Visitor browses software `Scenario 1:` Filter by category → list updates `Scenario 2:` No results message `Scenario 3:** View platform compatibility |
+| **TDD** | tests/unit/web/components/software_showcase.test.ts |
+| **Deep module** | `Public interface:** `<SoftwareShowcase category={} platform={} />` `Hidden complexity:** category filtering, platform badges `Depth metric:** moderate – 2 props, ~140 lines |
+| **Definition of done** | Component, tests, `.feature`, DTO consumption |
+| **Rules** | Uses `SoftwareQueryService`; category badges visual; platform indicators |
+
+#### Subtasks for WEB‑009
+
+- [ ] **WEB‑009‑1** – `src/web/components/software_showcase.tsx` – Main component
+  `imports_from`: SoftwareQueryService, SoftwareDTO
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **WEB‑009‑2** – `src/web/components/software_card.tsx` – Card component with category and platform badges
+  `imports_from`: SoftwareDTO
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **WEB‑009‑3** – `src/web/components/category_badge.tsx` – Category indicator
+  `imports_from`: none
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **WEB‑009‑4** – `tests/unit/web/components/software_showcase.test.ts` – Component tests
+  `imports_from`: SoftwareShowcase
+  `verification`: pass
+  **Error-state testing**: Include test cases for loading spinner, empty state message, and network error message
+- [ ] **WEB‑009‑5** – `features/software/software-browsing.feature` – Gherkin scenarios
+  `verification`: `pnpm test:bdd` passes
+
+---
+
+### `WEB‑010` Data Broker Education page | Status: `backlog`
+`depends_on`: `APP‑002`
+
+- [ ] **Parent** `WEB‑010` – Build educational page explaining data brokers, DROP, and deletion process.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | N/A – educational content |
+| **TDD** | N/A – static content with component integration |
+| **Deep module** | N/A – content page |
+| **Definition of done** | Educational page with factual explanations; links to official resources; integrates broker search component |
+| **Out of scope** | Legal advice |
+| **Rules** | Neutral factual explanations; no "good/bad" language; links to official DROP resources |
+
+#### Subtasks for WEB‑010
+
+- [ ] **WEB‑010‑1** – `src/pages/data-broker-education.astro` – Educational page explaining: what data brokers are, how they collect data, DROP explained, step-by-step deletion instructions, the reality of suppression lists (data never truly deleted), links to official resources
+  `imports_from`: BrokerDashboard (for search integration)
+  `verification`: page renders at `/data-broker-education` with educational content
+- [ ] **WEB‑010‑2** – Verify all claims have source citations
+  `imports_from`: none
+  `verification`: grep finds source URLs for all factual claims on the page
+
+---
+
+### `WEB‑011` Platforms & Websites comparison | Status: `backlog`
+`depends_on`: `APP‑006`
+
+- [ ] **Parent** `WEB‑011` – Build comparison page for platforms and websites with factual privacy data.
+
+| Aspect | Detail |
+| :--- | :--- |
+| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
+| **BDD** | `Feature:` Visitor compares platforms `Scenario 1:** View search engines comparison `Scenario 2:** View cloud storage comparison |
+| **TDD** | tests/unit/web/components/platform_comparison.test.ts |
+| **Deep module** | `Public interface:** `<PlatformComparison category={} />` `Hidden complexity:** comparison table, fact display `Depth metric:** moderate – 1 prop, ~150 lines |
+| **Definition of done** | Component, tests, `.feature`, factual comparison data |
+| **Rules** | Uses `SoftwareQueryService` for platforms; factual comparisons only |
+
+#### Subtasks for WEB‑011
+
+- [ ] **WEB‑011‑1** – `src/web/components/platform_comparison.tsx` – Main comparison component
+  `imports_from`: SoftwareQueryService, SoftwareDTO
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **WEB‑011‑2** – `src/web/components/comparison_table.tsx` – Comparison table component
+  `imports_from`: SoftwareDTO
+  `verification`: `pnpm tsc --noEmit`
+- [ ] **WEB‑011‑3** – `tests/unit/web/components/platform_comparison.test.ts` – Component tests
+  `imports_from`: PlatformComparison
+  `verification`: pass
+- [ ] **WEB‑011‑4** – `features/software/platform-comparison.feature` – Gherkin scenarios
+  `verification`: `pnpm test:bdd` passes
+
+---
+
 ## Phase 5 – Cross‑context Integration
 
 ### `INT‑001` Link Violations to Companies | Status: `backlog`  
@@ -1013,7 +1798,7 @@ client:idle for search bars and auxiliary widgets.
 | **BDD** | `Feature:` User views violation list `Scenario:` Given a violation with a company reference, when displayed, the company name is shown (based on event‑driven snapshot) |
 | **TDD** | `Test file(s):` tests/integration/cross_context/violation_company_integration.test.ts |
 | **Definition of done** | `CompanyReference` in Violation context resolved via event handler that listens to `CompanyEvaluated` and updates the reference snapshot; subscription registration in composition root (e.g., `src/infrastructure/event_subscriptions.ts`); integration test passes |
-| **Out of scope** | Full ACID consistency. **Production limitation**: The current in‑memory EventBus (ARCH‑004) does not persist events across Workers requests. Full cross‑request event handling requires Cloudflare Queues, planned for v2. |
+| **Out of scope** | Full ACID consistency. **⚠️ v1 Limitation**: The current in-memory EventBus (ARCH‑004) does not persist events across Workers requests. For v1 static output this limitation has zero runtime impact (all data is pre-built). For v2 SSR, note that Cloudflare KV is eventually consistent and the in-memory EventBus does not survive worker restarts, meaning cross-request event handling will be effectively broken without Cloudflare Queues. The `CompanyReference` snapshot will only be populated when the violation is created immediately after the company (same request). Full cross‑request event handling requires Cloudflare Queues, planned for v2. |
 | **Rules** | Use identity reference only; never load Company aggregate directly; event handler reads `companyName` from `CompanyEvaluated` payload and updates the `CompanyReference` snapshot; no repository call needed |
 | **Advanced patterns** | Domain Events, eventual consistency |
 | **Anti‑patterns** | Direct aggregate dependency |
@@ -1070,32 +1855,6 @@ client:idle for search bars and auxiliary widgets.
 
 ---
 
-### `WEB‑008` Create navigation component | Status: `backlog`  
-`depends_on`: `WEB‑006`
-
-- [ ] **Parent** `WEB‑008` – Build global navigation component for site.
-
-| Aspect | Detail |
-| :--- | :--- |
-| **DDD** | `Bounded context:` Web Adapter (presentation) `Aggregate root:` N/A |
-| **BDD** | N/A |
-| **TDD** | `Test file(s):` tests/unit/web/components/navigation.test.ts |
-| **Deep module** | N/A – navigation component |
-| **Definition of done** | Navigation component created and integrated into all pages |
-| **Out of scope** | Dynamic navigation items |
-| **Rules** | Navigation links to all main pages; accessible; responsive |
-
-#### Subtasks for WEB‑008
-
-- [ ] **WEB‑008‑1** – `src/web/components/navigation.astro` – Global header/footer component  
-  `imports_from`: none  
-  `verification`: page renders a navigation bar linking to all main pages
-- [ ] **WEB‑008‑2** – Integrate the navigation into all pages created in `WEB‑006` and `WEB‑007`  
-  `imports_from`: none  
-  `verification`: `pnpm build` succeeds and navigation links work
-
----
-
 ## Meta‑conventions recap
 
 - Every subtask has a `verification` command; if verification fails, halt and fix before proceeding.
@@ -1105,3 +1864,17 @@ client:idle for search bars and auxiliary widgets.
 - Depth refactoring is repeated as the final subtask inside every module; there is no separate global REF‑001.
 
 This `TODO.md` is now fully executable by an AI agent following the stated conventions.
+
+---
+
+## Task Count Summary
+
+- **Total tasks**: 46 (38 original + 8 new)
+- **Phase 0 (Architecture)**: 8 tasks (ARCH-001 through ARCH-008)
+- **Phase 1 (Domain Models)**: 6 tasks (COMP-001, TECH-001, VIOL-001, LAW-001, BROK-001, SOFT-001)
+- **Phase 2 (Repositories & Infrastructure)**: 2 tasks (COMP-002, BROK-002)
+- **Phase 2.5 (Seed Data & Content)**: 2 tasks (DATA-001, DATA-002)
+- **Phase 3 (Application Layer)**: 6 tasks (APP-001 through APP-006)
+- **Phase 4 (Web Components)**: 11 tasks (WEB-001 through WEB-011)
+- **Phase 5 (Cross-context Integration)**: 4 tasks (INT-001 through INT-004)
+- **Meta**: WEB-006 (page wiring), WEB-007 (legal pages), WEB-008 (navigation)
